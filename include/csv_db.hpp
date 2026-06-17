@@ -52,7 +52,6 @@ public:
 
 class HashIndex : public BaseIndex {
 private:
-    // 一個鍵值（如 id=1）可能會對應到多個相同的 Row ID（如果欄位值重複）
     std::unordered_map<ValueType, std::vector<size_t>, VariantHash> index_map;
 public:
     void insert(const ValueType& value, size_t row_id) override {
@@ -102,7 +101,6 @@ public:
         rows.push_back(row);
         size_t new_row_id = rows.size() - 1;
 
-        // 如果目前這些欄位已經建立了索引，必須同步更新索引！
         for (auto& [col_name, index_ptr] : indexes) {
             size_t col_idx = schema.name_to_index[col_name];
             index_ptr->insert(row.values[col_idx], new_row_id);
@@ -118,7 +116,6 @@ public:
             index_ptr = std::make_shared<HashIndex>();
         }
         
-        // 把現有的所有資料列統統倒進新建立的索引中
         size_t col_idx = schema.name_to_index[column_name];
         for (size_t i = 0; i < rows.size(); ++i) {
             index_ptr->insert(rows[i].values[col_idx], i);
@@ -240,7 +237,6 @@ public:
             }
         }
 
-        // 如果沒辦法用索引，只好乖乖退回全表掃描，把所有的 Row ID (0 到 N-1) 都放進去檢查
         if (!index_applied) {
             row_ids_to_check.resize(source_table.rows.size());
             for (size_t i = 0; i < source_table.rows.size(); ++i) row_ids_to_check[i] = i;
@@ -252,7 +248,6 @@ public:
             bool row_match = true;
 
             if (!conditions.empty()) {
-                // 如果已經套用了索引，第一個條件就不用重複用 CPU 線性算一遍了
                 size_t start_cond_idx = index_applied ? 1 : 0;
                 
                 if (!index_applied) {
